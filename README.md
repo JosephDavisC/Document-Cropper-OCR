@@ -17,6 +17,12 @@ Upload a photo of a receipt/document → crop/warp → run OCR → download JSON
 
 ---
 
+## 🚀 Demo
+
+[![Demo Video](https://img.youtube.com/vi/8nZu9voAyiM/0.jpg)](https://www.youtube.com/watch?v=8nZu9voAyiM)
+
+---
+
 ## 📂 Project Structure
 
 ```
