@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual environment
+.venv/
+env/
+venv/
+
+# IDE/Editor settings
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs / caches
+*.log
+*.tmp
+*.DS_Store
+
+# Build / dist
+build/
+dist/
+*.egg-info/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Local data / uploads
+uploads/
+*.jpg
+*.jpeg
+*.png
+*.pdf
+
+# EasyOCR model cache (if used)
+~/.EasyOCR/

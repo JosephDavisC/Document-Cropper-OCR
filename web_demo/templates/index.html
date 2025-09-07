@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Document Cropper & OCR</title>
+  <link rel="stylesheet" href="/static/styles.css"/>
+  <script defer src="https://unpkg.com/lucide@latest"></script>
+  <script defer src="/static/script.js"></script>
+</head>
+<body>
+  <div class="bg-grad" aria-hidden="true"></div>
+
+  <nav class="nav">
+    <div class="brand">
+      <div class="logo">JD</div>
+      <span class="brand-text">Document Cropper & OCR</span>
+    </div>
+    <div class="links">
+      <a class="pill secondary" href="/?engine={{ engine or 'tesseract' }}">Home</a>
+      <a class="pill" href="https://github.com/" target="_blank" rel="noreferrer">
+        <i data-lucide="github"></i> GitHub
+      </a>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <h1 class="title"><span class="fade">OpenCV</span> <span class="grad">Document Cropper & OCR</span></h1>
+    <p class="subtitle">Perspective warp • Binarize • OCR (Tesseract / EasyOCR) • FastAPI demo</p>
+    <div class="badges">
+      <span class="badge"><i data-lucide="camera"></i> image → scan</span>
+      <span class="badge"><i data-lucide="cpu"></i> OpenCV</span>
+      <span class="badge"><i data-lucide="flame"></i> FastAPI</span>
+    </div>
+  </header>
+
+  <main class="card" id="app-root">
+    <form id="upload-form" action="/upload" method="post" enctype="multipart/form-data" class="controls" novalidate>
+      <input type="hidden" name="mode" value="binary"/>
+
+      <label class="file pill">
+        <input id="file-input" type="file" name="file" accept="image/*" required/>
+        <i data-lucide="upload-cloud"></i><span>Select or drop image…</span>
+      </label>
+
+      <select name="engine" class="pill secondary" style="min-width:160px">
+        <option value="tesseract" {% if engine != 'easyocr' %}selected{% endif %}>Tesseract</option>
+        <option value="easyocr" {% if engine == 'easyocr' %}selected{% endif %}>EasyOCR</option>
+      </select>
+
+      <button id="submit-btn" class="pill primary" type="submit" disabled>
+        <i data-lucide="wand-2"></i> Scan
+      </button>
+    </form>
+
+    <div id="dropzone" class="dropzone" aria-label="Dropzone">
+      <div class="dz-inner" id="dz-empty">
+        <i data-lucide="image"></i>
+        <p>Drag & drop an image here</p>
+        <small>Best results when all 4 corners are visible on a contrasting background.</small>
+      </div>
+
+      <!-- preview never opens lightbox -->
+      <div id="preview" class="preview hidden">
+        <div class="img-wrap">
+          <img id="preview-img" alt="preview"/>
+        </div>
+        <small class="muted">Ready to scan</small>
+      </div>
+    </div>
+
+    {% if result %}
+    <section class="results-grid">
+      <figure class="result-card">
+        <figcaption>Original</figcaption>
+        <div class="img-wrap" data-lightbox="true">
+          <img src="data:image/jpeg;base64,{{ result.original_b64 }}" alt="original"/>
+          <div class="hover-icon"><i data-lucide="mouse-pointer-click"></i></div>
+        </div>
+        <a class="pill download" download="original.jpg"
+           href="data:image/jpeg;base64,{{ result.original_b64 }}">
+          <i data-lucide="download"></i> Download
+        </a>
+      </figure>
+
+      <figure class="result-card">
+        <figcaption>Scanned</figcaption>
+        <div class="img-wrap" data-lightbox="true">
+          <img id="scanned-img" src="data:image/jpeg;base64,{{ result.processed_b64 }}" alt="scanned"/>
+          <div class="hover-icon"><i data-lucide="mouse-pointer-click"></i></div>
+        </div>
+        <div class="actions">
+          <a class="pill download" download="scanned.jpg"
+             href="data:image/jpeg;base64,{{ result.processed_b64 }}">
+            <i data-lucide="download"></i> Download Image
+          </a>
+          <a class="pill download" download="ocr.json"
+             href="data:application/json;base64,{{ result.json_b64 }}">
+            <i data-lucide="file-text"></i> Download OCR JSON
+          </a>
+        </div>
+
+        <details class="json-preview" open>
+          <summary>Parsed fields</summary>
+          <pre><code>{{ result.fields | tojson(indent=2) }}</code></pre>
+        </details>
+      </figure>
+    </section>
+    {% else %}
+    <p class="hint">Tip: include margins around the page so the detector sees all four corners.</p>
+    {% endif %}
+  </main>
+
+  <!-- spinner (hidden by default) -->
+  <div id="spinner" class="spinner hidden" role="status" aria-live="polite" aria-hidden="true">
+    <div class="ring"></div>
+    <p>Processing…</p>
+  </div>
+
+  <!-- lightbox (hidden by default) -->
+  <div id="lightbox" class="lightbox hidden" aria-modal="true" role="dialog" aria-hidden="true">
+    <button id="lb-close" class="lb-close" aria-label="Close"><i data-lucide="x"></i></button>
+    <img id="lightbox-img" alt="full size"/>
+  </div>
+</body>
+</html>
