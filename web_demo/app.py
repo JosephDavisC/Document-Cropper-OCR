@@ -1,10 +1,11 @@
+# web_demo/app.py
 from fastapi import FastAPI, Request, UploadFile, File, Form, Query
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 import base64, json, re
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 
 import cv2
 import numpy as np
@@ -127,6 +128,43 @@ def _coerce_year(date_str: str, all_text: str) -> str:
     return date_str
 
 
+# ----------------------- Currency detection (explicit-only) -----------------------
+def detect_currency(text: str) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Return (ISO_code, source) using only explicit tokens/symbols.
+    Never guess; if unknown, return (None, None).
+    """
+    PATTERNS = {
+        "USD": [r"\bUSD\b", r"US\$"],
+        "UGX": [r"\bUGX\b", r"\bUSh\b", r"\bSHS\b", r"\bSH\.?S\.?\b"],
+        "KES": [r"\bKES\b", r"\bKSH\b", r"KSh"],
+        "TZS": [r"\bTZS\b", r"\bTSH\b", r"TSh"],
+        "IDR": [r"\bIDR\b", r"\bRP\b"],
+        "JPY": [r"\bJPY\b"],
+        "EUR": [r"\bEUR\b"],
+        "GBP": [r"\bGBP\b"],
+        "CAD": [r"\bCAD\b"],
+        "AUD": [r"\bAUD\b"],
+    }
+    t = text
+
+    # keyword matches
+    for code, pats in PATTERNS.items():
+        for p in pats:
+            if re.search(p, t, flags=re.I):
+                return code, "keyword"
+
+    # symbol matches (disambiguate when possible)
+    if "€" in t:  return "EUR", "symbol"
+    if "£" in t:  return "GBP", "symbol"
+    if "¥" in t:  return "JPY", "symbol"
+    if "$" in t:
+        if re.search(r"\bCAD\b|C\$", t, flags=re.I): return "CAD", "symbol"
+        if re.search(r"\bAUD\b|A\$", t, flags=re.I): return "AUD", "symbol"
+        return "USD", "symbol"   # common default for bare '$'
+    return None, None
+
+
 # ----------------------- OCR engines -----------------------
 def _ocr_tesseract(img_bgr: np.ndarray) -> Dict:
     proc = preprocess_for_ocr(img_bgr)
@@ -184,16 +222,9 @@ def run_ocr(img_bgr: np.ndarray, engine: str) -> Dict:
 def parse_fields(ocr: Dict) -> dict:
     lines: List[str] = ocr["lines"]
     joined = " ".join(lines)
-    up = joined.upper()
 
-    # currency (default to UGX for this demo)
-    currency = None
-    for tag in ["UGX", "USH", "SHS", "USD", "EUR", "GBP", "KES", "TZS", "IDR", "JPY", "CAD", "AUD"]:
-        if tag in up:
-            currency = "UGX" if tag in {"USH", "SHS"} else tag
-            break
-    if currency is None:
-        currency = "UGX"
+    # currency (explicit only; no guessing)
+    currency, currency_source = detect_currency(joined)
 
     # date
     date = None
@@ -272,7 +303,14 @@ def parse_fields(ocr: Dict) -> dict:
                 tax = tok
                 break
 
-    return {"currency": currency, "date": date, "total": total, "tax": tax, "raw_lines": lines[:120]}
+    return {
+        "currency": currency,
+        "currency_source": currency_source,  # new: "keyword" | "symbol" | None
+        "date": date,
+        "total": total,
+        "tax": tax,
+        "raw_lines": lines[:120],
+    }
 
 
 # ----------------------- Routes -----------------------
@@ -296,7 +334,10 @@ async def upload(
     ocr = run_ocr(result.image, engine)
     fields = parse_fields(ocr)
 
-    blob = json.dumps({"engine": ocr.get("engine"), "fields": fields, "text": ocr["text"]}, ensure_ascii=False, indent=2)
+    blob = json.dumps(
+        {"engine": ocr.get("engine"), "fields": fields, "text": ocr["text"]},
+        ensure_ascii=False, indent=2
+    )
     json_b64 = base64.b64encode(blob.encode("utf-8")).decode("utf-8")
 
     ctx = {
