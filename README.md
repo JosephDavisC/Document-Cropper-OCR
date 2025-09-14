@@ -1,4 +1,4 @@
-# 📄 Doc Cropper + OCR (🚧 In Progress)
+# 📄 Doc Cropper
 A simple **document cropper + OCR web app** built with **OpenCV, FastAPI, and Tesseract/EasyOCR**.  
 
 Upload a photo of a receipt/document → crop/warp → run OCR → download JSON + images.
